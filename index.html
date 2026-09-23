@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A4 ID Card Specimen Layout & Print Tool</title>
+    <meta name="description" content="Authorized browser-based A4 ID card specimen layout and high-precision print tool for educational and internal testing.">
+    
+    <!-- Google Fonts: Poppins & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- External Libraries (CDN) -->
+    <!-- jsPDF for millimeter-accurate PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- JSZip for batch export packaging -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- Pica for high-quality bicubic resampling -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pica/9.0.1/pica.min.js"></script>
+    <!-- PDF.js — local browser-only PDF rendering (Mozilla) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <!-- Aadhaar PDF Loader Module (client-side only) -->
+    <script src="pdf-loader.js"></script>
+</head>
+<body>
+    <!-- App Container -->
+    <div class="app-wrapper">
+        
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-brand">
+                <div class="brand-icon">
+                    <i class="fa-solid fa-id-card-clip"></i>
+                </div>
+                <div class="brand-text">
+                    <h1>A4 ID CARD SPECIMEN MAKER</h1>
+                    <span class="sub-badge"><i class="fa-solid fa-shield-halved"></i> Authorized / Educational Specimen Printing Tool</span>
+                </div>
+            </div>
+            
+            <div class="header-actions">
+                <button id="btnLoadSample" class="btn btn-secondary btn-sm" title="Load sample specimen cards for quick testing">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> Load Sample Cards
+                </button>
+                <button id="btnToggleBatch" class="btn btn-outline btn-sm" title="Switch between Single and Batch mode">
+                    <i class="fa-solid fa-layer-group"></i> <span id="batchBtnText">Batch Mode</span>
+                </button>
+                <button id="btnResetAll" class="btn btn-danger-outline btn-sm" title="Reset all settings and images">
+                    <i class="fa-solid fa-rotate-left"></i> Reset All
+                </button>
+            </div>
+        </header>
+
+        <!-- Compliance & Privacy Notice Bar -->
+        <div class="notice-bar">
+            <div class="notice-item">
+                <i class="fa-solid fa-lock text-success"></i>
+                <span><strong>100% Client-Side Privacy:</strong> Images are processed purely in your browser and never uploaded to any server.</span>
+            </div>
+            <div class="notice-item specimen-tag">
+                <i class="fa-solid fa-triangle-exclamation text-warning"></i>
+                <span><strong>Specimen Notice:</strong> All outputs automatically include mandatory <em>"SAMPLE / NOT VALID FOR IDENTIFICATION"</em> markings.</span>
+            </div>
+        </div>
+
+        <!-- Main Layout Grid -->
+        <main class="main-container">
+            
+            <!-- LEFT CONTROL PANEL -->
+            <aside class="control-panel" id="controlPanel">
+                
+                <!-- SINGLE CARD MODE CONTROLS -->
+                <div id="singleModeSection" class="mode-section active">
+
+                    <!-- SOURCE TYPE SWITCHER -->
+                    <div class="panel-section source-type-section">
+                        <div class="section-header">
+                            <h2><i class="fa-solid fa-layer-group"></i> Source Type</h2>
+                        </div>
+                        <div class="source-tab-group">
+                            <button class="source-tab active" id="srcTabImage" title="Use uploaded JPG/PNG/WebP images">
+                                <i class="fa-solid fa-image"></i> Image
+                            </button>
+                            <button class="source-tab" id="srcTabAadhaar" title="Use Aadhaar PDF as card source">
+                                <i class="fa-solid fa-file-pdf"></i> Aadhaar PDF
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- AADHAAR PDF PANEL (hidden by default) -->
+                    <div id="aadhaarPanel" class="panel-section aadhaar-panel" style="display:none;">
+                        <div class="section-header">
+                            <h2><i class="fa-solid fa-id-card"></i> Aadhaar PDF Print</h2>
+                            <span class="privacy-badge"><i class="fa-solid fa-lock"></i> Local Only</span>
+                        </div>
+
+                        <p class="privacy-notice">
+                            <i class="fa-solid fa-shield-halved text-success"></i>
+                            <strong>LOCAL PROCESSING — Your PDF stays on this device.</strong><br>
+                            The PDF is processed inside this browser and is never uploaded to any server.
+                        </p>
+
+                        <!-- PDF Drop Zone -->
+                        <div class="pdf-dropzone" id="aadhaarDropZone">
+                            <div class="pdf-dropzone-inner" id="aadhaarDropContent">
+                                <i class="fa-solid fa-file-pdf pdf-upload-icon"></i>
+                                <p class="dropzone-title">Drag &amp; Drop Aadhaar PDF</p>
+                                <p class="dropzone-sub">PDF only — Max 50 MB</p>
+                                <label class="btn btn-primary btn-sm file-input-label">
+                                    <i class="fa-solid fa-folder-open"></i> Select Aadhaar PDF
+                                    <input type="file" id="aadhaarFileInput" accept="application/pdf,.pdf" class="file-input-hidden">
+                                </label>
+                            </div>
+                            <div class="pdf-file-info" id="aadhaarFileInfo" style="display:none;">
+                                <div class="pdf-file-meta">
+                                    <i class="fa-solid fa-file-pdf" style="color:var(--danger);font-size:1.5rem;"></i>
+                                    <div>
+                                        <div class="meta-name" id="aadhaarFileName">document.pdf</div>
+                                        <div class="meta-specs" id="aadhaarFilePages">Pages: —</div>
+                                    </div>
+                                    <button class="btn-icon-danger btn-remove" id="btnRemoveAadhaar" title="Remove PDF">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Loading indicator -->
+                        <div class="pdf-loading" id="aadhaarLoading" style="display:none;">
+                            <i class="fa-solid fa-spinner fa-spin"></i>
+                            <span id="aadhaarLoadingText">Loading PDF...</span>
+                        </div>
+
+                        <!-- Page Thumbnail Grid -->
+                        <div id="aadhaarPageGrid" style="display:none;">
+                            <div class="control-row">
+                                <label style="font-size:0.76rem;font-weight:600;margin-bottom:0.5rem;display:block;">
+                                    Select Page(s)
+                                </label>
+                                <div class="pdf-page-grid" id="aadhaarPageThumbs"></div>
+                            </div>
+                        </div>
+
+                        <!-- Print Mode & Template Auto-Crop Section -->
+                        <div id="aadhaarPrintModeSection" style="display:none;">
+                            
+                            <!-- Template Detection Banner -->
+                            <div class="aadhaar-template-box" id="aadhaarTemplateBox" style="margin-bottom:0.6rem;">
+                                <div class="aadhaar-template-badge" id="aadhaarTemplateBadge">
+                                    <i class="fa-solid fa-file-invoice"></i>
+                                    <span>Template: <strong id="aadhaarTemplateName">Inspecting layout...</strong></span>
+                                </div>
+                                <div id="aadhaarLayoutMismatchAlert" class="aadhaar-mismatch-alert" style="display:none;">
+                                    <div style="display:flex;align-items:center;gap:0.35rem;">
+                                        <i class="fa-solid fa-triangle-exclamation"></i>
+                                        <span id="aadhaarMismatchText">Different Aadhaar PDF layout detected.</span>
+                                    </div>
+                                    <button type="button" class="btn btn-outline btn-xs" id="btnOpenManualCropAlert" style="margin-top:0.35rem;align-self:flex-start;">
+                                        <i class="fa-solid fa-crop-simple"></i> Use Manual Crop
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Auto Crop Button (Default) -->
+                            <button class="btn btn-primary btn-block" id="btnAutoCropAadhaar" style="margin-bottom:0.5rem;font-weight:600;">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> Auto Crop (Front &amp; Back)
+                            </button>
+
+                            <!-- Bottom Panels Extracted Preview (Front & Back) -->
+                            <div id="aadhaarPanelsPreview" class="aadhaar-panels-preview" style="display:none;margin-bottom:0.75rem;">
+                                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.4rem;">
+                                    <span style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;">
+                                        <i class="fa-solid fa-id-card"></i> Bottom Panels Preview
+                                    </span>
+                                    <span class="badge badge-success" style="font-size:0.62rem;">Bottom Panels Only</span>
+                                </div>
+                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.45rem;">
+                                    <!-- Front Preview Card -->
+                                    <div class="aadhaar-preview-card">
+                                        <div class="aadhaar-preview-header" style="color:var(--primary);">
+                                            <i class="fa-solid fa-user"></i> FRONT PREVIEW
+                                        </div>
+                                        <div class="aadhaar-preview-frame">
+                                            <img id="aadhaarFrontPreviewImg" src="" alt="Front Panel Preview">
+                                        </div>
+                                        <div class="aadhaar-preview-footer">
+                                            <span>Bottom-Left</span>
+                                            <span id="aadhaarFrontDimsBadge" style="font-family:'JetBrains Mono',monospace;"></span>
+                                        </div>
+                                    </div>
+                                    <!-- Back Preview Card -->
+                                    <div class="aadhaar-preview-card" id="aadhaarBackPreviewCard">
+                                        <div class="aadhaar-preview-header" style="color:var(--success);">
+                                            <i class="fa-solid fa-location-dot"></i> BACK PREVIEW
+                                        </div>
+                                        <div class="aadhaar-preview-frame">
+                                            <img id="aadhaarBackPreviewImg" src="" alt="Back Panel Preview">
+                                        </div>
+                                        <div class="aadhaar-preview-footer">
+                                            <span>Bottom-Right</span>
+                                            <span id="aadhaarBackDimsBadge" style="font-family:'JetBrains Mono',monospace;"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Print Mode Selector -->
+                            <div class="control-row">
+                                <label style="font-size:0.74rem;font-weight:600;margin-bottom:0.35rem;display:block;">Print Mode</label>
+                                <div class="source-tab-group">
+                                    <button class="source-tab active" id="pdfModeFrontBack" title="Extract both Front (bottom-left) and Back (bottom-right) panels">
+                                        <i class="fa-solid fa-clone"></i> Front + Back
+                                    </button>
+                                    <button class="source-tab" id="pdfModeSingle" title="Extract only Front (bottom-left) panel">
+                                        <i class="fa-solid fa-square"></i> Front Only
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Page Selectors -->
+                            <div class="control-row" id="aadhaarSinglePageRow" style="display:none;">
+                                <div class="form-group" style="margin-bottom:0.5rem;">
+                                    <label for="aadhaarFrontPageSelect">Selected Page</label>
+                                    <select id="aadhaarFrontPageSelect" class="form-control"></select>
+                                </div>
+                            </div>
+
+                            <div id="aadhaarFrontBackRows">
+                                <div class="form-row-2">
+                                    <div class="form-group">
+                                        <label for="aadhaarFrontPageSelect2">Front Panel Page</label>
+                                        <select id="aadhaarFrontPageSelect2" class="form-control"></select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="aadhaarBackPageSelect">Back Panel Page</label>
+                                        <select id="aadhaarBackPageSelect" class="form-control"></select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Apply Button -->
+                            <button class="btn btn-secondary btn-block btn-sm" id="btnApplyAadhaar" style="margin-top:0.3rem;">
+                                <i class="fa-solid fa-check-circle"></i> Re-Apply to Card Layout
+                            </button>
+
+                            <!-- Quick Reset -->
+                            <button class="btn btn-outline btn-xs btn-block" id="btnResetAadhaarPosition" style="margin-top:0.35rem;">
+                                <i class="fa-solid fa-arrows-rotate"></i> Reset Card Position
+                            </button>
+
+                            <!-- Advanced → Adjust Aadhaar Crop -->
+                            <details class="advanced-crop-details" id="aadhaarAdvancedCropDetails" style="margin-top:0.6rem;">
+                                <summary><i class="fa-solid fa-sliders"></i> Advanced &rarr; Adjust Aadhaar Crop</summary>
+                                <div class="advanced-crop-body">
+                                    <p style="font-size:0.68rem;color:var(--text-muted);margin-bottom:0.4rem;">
+                                        PDF Coordinates (points) for 612 &times; 792 pt template:
+                                    </p>
+                                    <div class="form-row-2">
+                                        <div>
+                                            <span style="display:block;font-size:0.7rem;font-weight:700;color:var(--primary);margin-bottom:0.2rem;">Front (Bottom-Left)</span>
+                                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.25rem;">
+                                                <label class="coord-label">X <input type="number" id="cropFrontX" value="47.7" step="0.1" class="form-control form-control-xs"></label>
+                                                <label class="coord-label">Y <input type="number" id="cropFrontY" value="569.25" step="0.1" class="form-control form-control-xs"></label>
+                                                <label class="coord-label">W <input type="number" id="cropFrontW" value="253.575" step="0.1" class="form-control form-control-xs"></label>
+                                                <label class="coord-label">H <input type="number" id="cropFrontH" value="165.15" step="0.1" class="form-control form-control-xs"></label>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <span style="display:block;font-size:0.7rem;font-weight:700;color:var(--success);margin-bottom:0.2rem;">Back (Bottom-Right)</span>
+                                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.25rem;">
+                                                <label class="coord-label">X <input type="number" id="cropBackX" value="311.25" step="0.1" class="form-control form-control-xs"></label>
+                                                <label class="coord-label">Y <input type="number" id="cropBackY" value="569.25" step="0.1" class="form-control form-control-xs"></label>
+                                                <label class="coord-label">W <input type="number" id="cropBackW" value="253.575" step="0.1" class="form-control form-control-xs"></label>
+                                                <label class="coord-label">H <input type="number" id="cropBackH" value="165.15" step="0.1" class="form-control form-control-xs"></label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div style="display:flex;gap:0.35rem;margin-top:0.45rem;justify-content:flex-end;">
+                                        <button type="button" class="btn btn-outline btn-xs" id="btnResetAadhaarCropCoords">Reset Defaults</button>
+                                        <button type="button" class="btn btn-primary btn-xs" id="btnApplyCustomAadhaarCrop">Apply Coords</button>
+                                    </div>
+                                </div>
+                            </details>
+
+                        </div>
+                    </div>
+
+                    <!-- Upload Cards Section -->
+                    <div class="panel-section">
+                        <div class="section-header">
+                            <h2><i class="fa-solid fa-cloud-arrow-up"></i> Card Images</h2>
+                            <button id="btnSwapCards" class="btn btn-secondary btn-xs" title="Swap Front and Back images">
+                                <i class="fa-solid fa-right-left"></i> Swap Front/Back
+                            </button>
+                        </div>
+                        
+                        <div class="upload-grid">
+                            <!-- Front Side Upload -->
+                            <div class="upload-card" id="frontDropZone">
+                                <div class="upload-card-header">
+                                    <span class="badge badge-primary">FRONT SIDE</span>
+                                    <button class="btn-icon-danger btn-remove" id="btnRemoveFront" title="Remove front image" style="display: none;">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </div>
+                                
+                                <div class="dropzone-content" id="frontDropContent">
+                                    <i class="fa-solid fa-image upload-icon"></i>
+                                    <p class="dropzone-title">Drag & Drop Front Image</p>
+                                    <p class="dropzone-sub">JPG, PNG, WebP (Max 20MB)</p>
+                                    <label class="btn btn-primary btn-sm file-input-label">
+                                        <i class="fa-solid fa-folder-open"></i> Choose Front Image
+                                        <input type="file" id="inputFront" accept="image/jpeg,image/png,image/webp,image/jpg" class="file-input-hidden">
+                                    </label>
+                                </div>
+
+                                <div class="image-meta-info" id="frontMetaInfo" style="display: none;">
+                                    <div class="meta-thumb-wrapper">
+                                        <img id="frontThumb" alt="Front Preview" class="meta-thumb">
+                                    </div>
+                                    <div class="meta-details">
+                                        <div class="meta-name" id="frontName">front.png</div>
+                                        <div class="meta-specs">
+                                            <span id="frontDims">0 × 0 px</span> • <span id="frontSize">0 KB</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Front Image Controls Accordion -->
+                                <details class="card-tweak-details" id="frontTweaks" style="display: none;">
+                                    <summary><i class="fa-solid fa-sliders"></i> Adjust Front Image</summary>
+                                    <div class="tweak-controls">
+                                        <div class="control-row">
+                                            <label>Rotation</label>
+                                            <div class="btn-group-sm">
+                                                <button class="btn btn-opt active" data-target="front" data-action="rot" data-val="0">0°</button>
+                                                <button class="btn btn-opt" data-target="front" data-action="rot" data-val="90">90°</button>
+                                                <button class="btn btn-opt" data-target="front" data-action="rot" data-val="180">180°</button>
+                                                <button class="btn btn-opt" data-target="front" data-action="rot" data-val="270">270°</button>
+                                            </div>
+                                        </div>
+                                        <div class="control-row">
+                                            <label>Zoom <span id="frontZoomVal" class="val-badge">100%</span></label>
+                                            <input type="range" id="frontZoom" min="50" max="200" value="100" class="slider-sm">
+                                        </div>
+                                        <div class="control-row-grid">
+                                            <div>
+                                                <label>Offset X <span id="frontOffXVal" class="val-badge">0mm</span></label>
+                                                <input type="range" id="frontOffX" min="-30" max="30" value="0" step="0.5" class="slider-sm">
+                                            </div>
+                                            <div>
+                                                <label>Offset Y <span id="frontOffYVal" class="val-badge">0mm</span></label>
+                                                <input type="range" id="frontOffY" min="-30" max="30" value="0" step="0.5" class="slider-sm">
+                                            </div>
+                                        </div>
+                                        <button class="btn btn-outline btn-xs btn-block" id="btnResetFrontTweaks">
+                                            <i class="fa-solid fa-arrows-rotate"></i> Reset Front Position
+                                        </button>
+                                    </div>
+                                </details>
+                            </div>
+
+                            <!-- Back Side Upload -->
+                            <div class="upload-card" id="backDropZone">
+                                <div class="upload-card-header">
+                                    <span class="badge badge-secondary">BACK SIDE</span>
+                                    <button class="btn-icon-danger btn-remove" id="btnRemoveBack" title="Remove back image" style="display: none;">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </div>
+                                
+                                <div class="dropzone-content" id="backDropContent">
+                                    <i class="fa-solid fa-image upload-icon"></i>
+                                    <p class="dropzone-title">Drag & Drop Back Image</p>
+                                    <p class="dropzone-sub">JPG, PNG, WebP (Max 20MB)</p>
+                                    <label class="btn btn-secondary btn-sm file-input-label">
+                                        <i class="fa-solid fa-folder-open"></i> Choose Back Image
+                                        <input type="file" id="inputBack" accept="image/jpeg,image/png,image/webp,image/jpg" class="file-input-hidden">
+                                    </label>
+                                </div>
+
+                                <div class="image-meta-info" id="backMetaInfo" style="display: none;">
+                                    <div class="meta-thumb-wrapper">
+                                        <img id="backThumb" alt="Back Preview" class="meta-thumb">
+                                    </div>
+                                    <div class="meta-details">
+                                        <div class="meta-name" id="backName">back.png</div>
+                                        <div class="meta-specs">
+                                            <span id="backDims">0 × 0 px</span> • <span id="backSize">0 KB</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Back Image Controls Accordion -->
+                                <details class="card-tweak-details" id="backTweaks" style="display: none;">
+                                    <summary><i class="fa-solid fa-sliders"></i> Adjust Back Image</summary>
+                                    <div class="tweak-controls">
+                                        <div class="control-row">
+                                            <label>Rotation</label>
+                                            <div class="btn-group-sm">
+                                                <button class="btn btn-opt active" data-target="back" data-action="rot" data-val="0">0°</button>
+                                                <button class="btn btn-opt" data-target="back" data-action="rot" data-val="90">90°</button>
+                                                <button class="btn btn-opt" data-target="back" data-action="rot" data-val="180">180°</button>
+                                                <button class="btn btn-opt" data-target="back" data-action="rot" data-val="270">270°</button>
+                                            </div>
+                                        </div>
+                                        <div class="control-row">
+                                            <label>Zoom <span id="backZoomVal" class="val-badge">100%</span></label>
+                                            <input type="range" id="backZoom" min="50" max="200" value="100" class="slider-sm">
+                                        </div>
+                                        <div class="control-row-grid">
+                                            <div>
+                                                <label>Offset X <span id="backOffXVal" class="val-badge">0mm</span></label>
+                                                <input type="range" id="backOffX" min="-30" max="30" value="0" step="0.5" class="slider-sm">
+                                            </div>
+                                            <div>
+                                                <label>Offset Y <span id="backOffYVal" class="val-badge">0mm</span></label>
+                                                <input type="range" id="backOffY" min="-30" max="30" value="0" step="0.5" class="slider-sm">
+                                            </div>
+                                        </div>
+                                        <button class="btn btn-outline btn-xs btn-block" id="btnResetBackTweaks">
+                                            <i class="fa-solid fa-arrows-rotate"></i> Reset Back Position
+                                        </button>
+                                    </div>
+                                </details>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Physical Card Dimensions Settings -->
+                    <div class="panel-section">
+                        <div class="section-header">
+                            <h2><i class="fa-solid fa-ruler-combined"></i> Card Dimensions & Sizing</h2>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="cardPresetSelect">Card Standard Preset</label>
+                            <select id="cardPresetSelect" class="form-control">
+                                <option value="id1" selected>ID-1 Standard — 85.60 × 53.98 mm (CR80 Standard)</option>
+                                <option value="driving">Driving License / Badge — 85.60 × 53.98 mm</option>
+                                <option value="business">Business Card — 90.00 × 50.00 mm</option>
+                                <option value="id2">ID-2 Specimen — 105.00 × 74.00 mm (A7 format)</option>
+                                <option value="custom">Custom Dimensions (mm)...</option>
+                            </select>
+                        </div>
+
+                        <!-- Custom Dimension Inputs -->
+                        <div id="customCardDims" class="custom-dims-row" style="display: none;">
+                            <div class="form-group">
+                                <label for="cardCustomWidth">Width (mm)</label>
+                                <input type="number" id="cardCustomWidth" class="form-control" value="85.60" step="0.1" min="20" max="250">
+                            </div>
+                            <div class="form-group">
+                                <label for="cardCustomHeight">Height (mm)</label>
+                                <input type="number" id="cardCustomHeight" class="form-control" value="53.98" step="0.1" min="20" max="250">
+                            </div>
+                        </div>
+
+                        <div class="form-row-2">
+                            <div class="form-group">
+                                <label for="cardResizeMode">Resize Mode</label>
+                                <select id="cardResizeMode" class="form-control">
+                                    <option value="cover" selected>Crop to Fill (Cover)</option>
+                                    <option value="contain">Fit Inside (Contain)</option>
+                                    <option value="stretch">Stretch to Fit</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="cardBorderRadius">Corner Cut Guide</label>
+                                <select id="cardBorderRadius" class="form-control">
+                                    <option value="3.18" selected>Standard Round (3.18 mm)</option>
+                                    <option value="0">Sharp Corners (0 mm)</option>
+                                    <option value="5.0">Large Round (5.0 mm)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Paper & Layout Settings -->
+                    <div class="panel-section">
+                        <div class="section-header">
+                            <h2><i class="fa-solid fa-file-lines"></i> A4 Paper & Alignment</h2>
+                        </div>
+
+                        <div class="form-row-2">
+                            <div class="form-group">
+                                <label for="paperOrientation">Paper Orientation</label>
+                                <select id="paperOrientation" class="form-control">
+                                    <option value="portrait" selected>A4 Portrait (210 × 297 mm)</option>
+                                    <option value="landscape">A4 Landscape (297 × 210 mm)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="outputDpi">Print DPI Resolution</label>
+                                <select id="outputDpi" class="form-control">
+                                    <option value="150">150 DPI (Fast / Draft)</option>
+                                    <option value="300" selected>300 DPI (Standard High-Res Print)</option>
+                                    <option value="600">600 DPI (Ultra Sharp Pro Print)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row-2">
+                            <div class="form-group">
+                                <label for="topMarginMm">Top Margin (mm)</label>
+                                <div class="input-with-unit">
+                                    <input type="number" id="topMarginMm" class="form-control" value="25" min="5" max="150" step="1">
+                                    <span class="unit-tag">mm</span>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="cardGapMm">Gap Between Cards (mm)</label>
+                                <div class="input-with-unit">
+                                    <input type="number" id="cardGapMm" class="form-control" value="5" min="0" max="50" step="0.5">
+                                    <span class="unit-tag">mm</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-row-2">
+                            <div class="form-group">
+                                <label for="cuttingGuideStyle">Cutting Borders / Guides</label>
+                                <select id="cuttingGuideStyle" class="form-control">
+                                    <option value="dashed" selected>Thin Dashed Line (0.2 mm)</option>
+                                    <option value="solid">Thin Solid Line (0.2 mm)</option>
+                                    <option value="cropmarks">Corner Crop Marks</option>
+                                    <option value="none">No Border Line</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="guideColor">Guide Line Color</label>
+                                <select id="guideColor" class="form-control">
+                                    <option value="#94a3b8" selected>Light Slate Gray (#94a3b8)</option>
+                                    <option value="#334155">Dark Charcoal (#334155)</option>
+                                    <option value="#000000">Solid Black (#000000)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Watermark / Specimen Protection Settings -->
+                    <div class="panel-section">
+                        <div class="section-header">
+                            <h2><i class="fa-solid fa-stamp"></i> Specimen Watermark (Mandatory)</h2>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Watermark Text</label>
+                            <input type="text" id="watermarkText" class="form-control font-mono" value="SAMPLE / NOT VALID FOR IDENTIFICATION" readonly title="Specimen watermark text is mandatory for authorized specimen generation">
+                            <small class="form-hint"><i class="fa-solid fa-lock"></i> Fixed safety watermark for authorized specimen identification only.</small>
+                        </div>
+
+                        <div class="form-row-2">
+                            <div class="form-group">
+                                <label for="watermarkPlacement">Placement Style</label>
+                                <select id="watermarkPlacement" class="form-control">
+                                    <option value="bottom_banner" selected>Bottom Banner (Under Cards)</option>
+                                    <option value="diagonal_overlay">Diagonal Overlay (Across Cards)</option>
+                                    <option value="top_bottom_dual">Dual Header & Footer</option>
+                                    <option value="subtle_card_stamp">Stamped on Each Card</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="watermarkColor">Watermark Color</label>
+                                <select id="watermarkColor" class="form-control">
+                                    <option value="crimson" selected>Crimson Red</option>
+                                    <option value="dark_slate">Dark Slate Gray</option>
+                                    <option value="navy_blue">Navy Blue</option>
+                                    <option value="solid_black">Solid Black</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row-2">
+                            <div class="form-group">
+                                <label>Opacity <span id="watermarkOpacityVal" class="val-badge">70%</span></label>
+                                <input type="range" id="watermarkOpacity" min="30" max="100" value="70" class="slider-sm">
+                            </div>
+                            <div class="form-group">
+                                <label>Font Scale <span id="watermarkSizeVal" class="val-badge">100%</span></label>
+                                <input type="range" id="watermarkSize" min="70" max="140" value="100" class="slider-sm">
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- BATCH MODE SECTION (Modular & Expandable) -->
+                <div id="batchModeSection" class="mode-section" style="display: none;">
+                    <div class="panel-section">
+                        <div class="section-header">
+                            <h2><i class="fa-solid fa-layer-group"></i> Batch Specimen Queue</h2>
+                            <button id="btnClearBatch" class="btn btn-danger-outline btn-xs">
+                                <i class="fa-solid fa-trash"></i> Clear Queue
+                            </button>
+                        </div>
+                        <p class="section-desc">Upload multiple front and back card images. Files with matching numbers or prefixes will be paired automatically.</p>
+
+                        <div class="batch-upload-box">
+                            <label class="btn btn-primary btn-block file-input-label">
+                                <i class="fa-solid fa-folder-plus"></i> Select Multiple Card Files (Front & Back)
+                                <input type="file" id="batchFileInput" multiple accept="image/jpeg,image/png,image/webp,image/jpg" class="file-input-hidden">
+                            </label>
+                        </div>
+
+                        <div class="batch-table-wrapper">
+                            <table class="batch-table" id="batchTable">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Front Card</th>
+                                        <th>Back Card</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="batchTableBody">
+                                    <tr>
+                                        <td colspan="5" class="empty-table-msg">No batch items loaded. Click above to add card images.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="batch-actions-bar">
+                            <button id="btnExportBatchZip" class="btn btn-success btn-block" disabled>
+                                <i class="fa-solid fa-file-zipper"></i> Generate & Download All as ZIP
+                            </button>
+                            <button id="btnExportBatchPdf" class="btn btn-primary btn-block" disabled>
+                                <i class="fa-solid fa-file-pdf"></i> Generate Multi-Page PDF
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </aside>
+
+            <!-- RIGHT LIVE PREVIEW & WORKSPACE -->
+            <section class="preview-workspace">
+                
+                <!-- Preview Canvas Toolbar -->
+                <div class="preview-toolbar">
+                    <div class="toolbar-left">
+                        <span class="preview-title"><i class="fa-solid fa-eye"></i> Live A4 Sheet Preview</span>
+                        <span class="render-indicator" id="renderIndicator"><i class="fa-solid fa-circle-check"></i> Synchronized</span>
+                    </div>
+
+                    <div class="toolbar-right">
+                        <button class="btn-tool" id="btnFitPreview" title="Fit to Screen"><i class="fa-solid fa-expand"></i> Fit View</button>
+                        <button class="btn-tool" id="btnZoomOut" title="Zoom Out"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+                        <span class="zoom-level-text" id="previewZoomText">100%</span>
+                        <button class="btn-tool" id="btnZoomIn" title="Zoom In"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+                    </div>
+                </div>
+
+                <!-- Canvas Viewport -->
+                <div class="canvas-viewport" id="canvasViewport">
+                    <div class="canvas-stage" id="canvasStage">
+                        <!-- Dual-Canvas Setup: Display Canvas receives scaled presentation from high-res Master Canvas -->
+                        <canvas id="previewCanvas" class="preview-canvas-elem" width="794" height="1123"></canvas>
+                    </div>
+                </div>
+
+                <!-- Live A4 Specs HUD & Calibration Info -->
+                <div class="specs-hud" id="specsHud">
+                    <div class="hud-item">
+                        <span class="hud-label">Paper</span>
+                        <span class="hud-val" id="hudPaper">A4 Portrait (210 × 297 mm)</span>
+                    </div>
+                    <div class="hud-item">
+                        <span class="hud-label">Card Size</span>
+                        <span class="hud-val" id="hudCardSize">85.60 × 53.98 mm</span>
+                    </div>
+                    <div class="hud-item">
+                        <span class="hud-label">Resolution</span>
+                        <span class="hud-val" id="hudDpi">300 DPI</span>
+                    </div>
+                    <div class="hud-item">
+                        <span class="hud-label">Output Canvas</span>
+                        <span class="hud-val" id="hudPixels">2480 × 3508 px</span>
+                    </div>
+                    <div class="hud-item">
+                        <span class="hud-label">Alignment</span>
+                        <span class="hud-val" id="hudLayout">Gap: 5mm | Top: 25mm</span>
+                    </div>
+                </div>
+
+            </section>
+        </main>
+
+        <!-- BOTTOM ACTION & EXPORT BAR -->
+        <footer class="action-footer">
+            <div class="action-footer-inner">
+                <div class="file-name-config">
+                    <label for="exportFilename"><i class="fa-solid fa-signature"></i> Filename:</label>
+                    <input type="text" id="exportFilename" class="form-control-inline" value="ID_Card_Specimen_A4_300DPI">
+                </div>
+
+                <div class="export-buttons-group">
+                    <button id="btnRender" class="btn btn-outline" title="Re-render preview canvas">
+                        <i class="fa-solid fa-arrows-rotate"></i> Refresh Render
+                    </button>
+                    <button id="btnDownloadPdf" class="btn btn-primary" title="Export millimeter-accurate vector A4 PDF">
+                        <i class="fa-solid fa-file-pdf"></i> Download PDF
+                    </button>
+                    <button id="btnDownloadJpg" class="btn btn-secondary" title="Export high-resolution 300 DPI JPG">
+                        <i class="fa-solid fa-file-image"></i> Download JPG
+                    </button>
+                    <button id="btnDownloadPng" class="btn btn-secondary" title="Export lossless high-resolution PNG">
+                        <i class="fa-solid fa-file-code"></i> Download PNG
+                    </button>
+                    <button id="btnPrint" class="btn btn-success" title="Direct print with physical 100% scale alignment">
+                        <i class="fa-solid fa-print"></i> Print A4 Sheet
+                    </button>
+                </div>
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- PRINT MODAL / CALIBRATION ADVISORY -->
+    <div class="modal-overlay" id="printModal" style="display: none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-print text-primary"></i> 1:1 Physical Print Scale Checklist</h3>
+                <button class="modal-close" id="btnClosePrintModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="alert-box alert-warning">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <div>
+                        <strong>Important for Physical Dimension Accuracy:</strong>
+                        <p>Standard printer dialogs often default to "Fit to Printable Area", which shrinks cards by 3-5%. To ensure your card prints at exactly <strong>85.60 × 53.98 mm</strong>:</p>
+                    </div>
+                </div>
+                
+                <ul class="print-guide-list">
+                    <li><i class="fa-solid fa-check text-success"></i> Destination Paper: <strong>A4 (210 × 297 mm)</strong></li>
+                    <li><i class="fa-solid fa-check text-success"></i> Scale: <strong>100% (Actual Size / Do not scale)</strong></li>
+                    <li><i class="fa-solid fa-check text-success"></i> Margins: <strong>None</strong> or <strong>Default / Zero</strong></li>
+                    <li><i class="fa-solid fa-check text-success"></i> Double-sided / Duplex: <strong>Off (Single sided specimen)</strong></li>
+                </ul>
+                
+                <p class="ruler-tip"><i class="fa-solid fa-ruler"></i> Always verify the printed card with a physical ruler before cutting.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="btnCancelPrint">Cancel</button>
+                <button class="btn btn-success" id="btnProceedPrint"><i class="fa-solid fa-print"></i> Open Browser Print Dialog</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Printable Image Container for Browser Print Engine -->
+    <div id="printContainer" class="print-only-container">
+        <img id="printImage" alt="A4 Specimen Sheet Print">
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- PDF Password Modal -->
+    <div id="pdfPasswordOverlay" class="modal-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="pdfPasswordTitle">
+        <div class="modal-card">
+            <div class="modal-header">
+                <i class="fa-solid fa-lock" style="color:var(--warning);"></i>
+                <h3 id="pdfPasswordTitle">PDF Password Required</h3>
+            </div>
+            <div class="modal-body">
+                <p id="pdfPasswordMsg" class="modal-msg">This Aadhaar PDF is password protected. Enter the password to unlock it.</p>
+                <p class="modal-hint"><i class="fa-solid fa-circle-info"></i> Aadhaar PDFs from UIDAI use: <strong>first 4 letters of your name in CAPS</strong> + <strong>birth year</strong> (e.g. <code>RAHU1990</code> for <em>Rahul</em> born in <em>1990</em>).</p>
+                <div class="modal-input-row">
+                    <input type="password" id="pdfPasswordInput" class="form-control" placeholder="Enter PDF password" autocomplete="off" spellcheck="false">
+                    <button class="btn-icon-toggle" id="btnTogglePdfPassword" title="Show/Hide password" tabindex="0">
+                        <i class="fa-solid fa-eye" id="pdfPasswordEyeIcon"></i>
+                    </button>
+                </div>
+                <p id="pdfPasswordError" class="modal-error" style="display:none;">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Incorrect password. Please try again.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="btnCancelPdfPassword">Cancel</button>
+                <button class="btn btn-primary" id="btnSubmitPdfPassword">
+                    <i class="fa-solid fa-unlock"></i> Unlock PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- PDF Crop Modal -->
+    <div id="pdfCropOverlay" class="modal-overlay crop-modal-overlay" style="display:none;z-index:10001;" role="dialog" aria-modal="true" aria-labelledby="cropModalTitle">
+        <div class="crop-modal-card">
+
+            <!-- Header -->
+            <div class="crop-modal-header">
+                <div class="crop-modal-title-group">
+                    <i class="fa-solid fa-crop-simple" style="color:var(--primary);font-size:1.1rem;"></i>
+                    <h3 id="cropModalTitle">Crop — Page <span id="cropPageLabel">?</span></h3>
+                </div>
+                <p class="crop-modal-hint"><i class="fa-solid fa-arrows-up-down-left-right"></i> Drag box to move &bull; Drag handles to resize &bull; Presets below</p>
+                <button class="btn-icon-toggle" id="btnCloseCropModal" title="Close">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Crop Presets & Layout Toolbar -->
+            <div class="crop-modal-toolbar">
+                <span class="crop-toolbar-label"><i class="fa-solid fa-shapes"></i> Card Layouts:</span>
+                <div class="crop-preset-group">
+                    <button type="button" class="btn btn-outline btn-xs crop-preset-btn active" id="btnPresetAadhaarFront" title="Default Aadhaar Front Card (Bottom-Left)">
+                        <i class="fa-solid fa-address-card"></i> Aadhaar Front
+                    </button>
+                    <button type="button" class="btn btn-outline btn-xs crop-preset-btn" id="btnPresetAadhaarBack" title="Default Aadhaar Back Card (Bottom-Right)">
+                        <i class="fa-solid fa-address-card"></i> Aadhaar Back
+                    </button>
+                    <button type="button" class="btn btn-outline btn-xs crop-preset-btn" id="btnPresetCenter" title="Center Standard Card Box">
+                        <i class="fa-solid fa-compress"></i> Center Card
+                    </button>
+                    <button type="button" class="btn btn-outline btn-xs crop-preset-btn" id="btnPresetBottomFull" title="Both Cards (Bottom Section)">
+                        <i class="fa-solid fa-table-columns"></i> Both Cards
+                    </button>
+                </div>
+                <div class="crop-toolbar-spacer"></div>
+                <div class="crop-clarity-group" title="Select render resolution: Ultra HD renders directly from vector equations without any blur">
+                    <label for="cropClaritySelect" class="crop-clarity-label"><i class="fa-solid fa-gem" style="color:var(--primary);"></i> Clarity:</label>
+                    <select id="cropClaritySelect" class="crop-clarity-select">
+                        <option value="600" selected>600 DPI (Original PDF Clarity)</option>
+                        <option value="800">800 DPI (Max Vector Sharpness)</option>
+                        <option value="300">300 DPI (Standard)</option>
+                    </select>
+                </div>
+                <label class="crop-ratio-toggle" title="Keep standard ID-1 card proportions (85.6 × 54 mm) while resizing">
+                    <input type="checkbox" id="chkCropLockRatio" checked>
+                    <span><i class="fa-solid fa-lock"></i> Lock Ratio</span>
+                </label>
+            </div>
+
+            <!-- Canvas Area -->
+            <div class="crop-canvas-wrapper" id="cropCanvasWrapper">
+                <div class="crop-canvas-inner" id="cropCanvasInner">
+                    <canvas id="cropDisplayCanvas"></canvas>
+                    <canvas id="cropOverlayCanvas"></canvas>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="crop-modal-footer">
+                <span class="crop-selection-info" id="cropSelectionInfo">
+                    <i class="fa-regular fa-square-dashed"></i> No selection &mdash; drag on the image above
+                </span>
+                <div class="crop-footer-actions">
+                    <button class="btn btn-outline btn-sm" id="btnResetCropSelection">
+                        <i class="fa-solid fa-arrows-rotate"></i> Reset
+                    </button>
+                    <button class="btn btn-primary btn-sm" id="btnCropApplyFront" disabled>
+                        <i class="fa-solid fa-image"></i> Use as Front
+                    </button>
+                    <button class="btn btn-success-crop btn-sm" id="btnCropApplyBack" disabled>
+                        <i class="fa-solid fa-image"></i> Use as Back
+                    </button>
+                    <button class="btn btn-outline btn-sm" id="btnCloseCropModal2">Cancel</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script src="app.js"></script>
+</body>
+</html>
